@@ -150,11 +150,12 @@ def get_nonreentrant_lock(func_t):
     if not func_t.nonreentrant:
         return ["pass"], ["pass"]
 
-    nkey = func_t.reentrancy_key_position.position
+    #nkey = func_t.reentrancy_key_position.position
+    nkey = 2
 
     LOAD, STORE = "sload", "sstore"
     if version_check(begin="cancun"):
-        LOAD, STORE = "tload", "tstore"
+        #LOAD, STORE = "tload", "tstore"
         # for tload/tstore we don't need to care about net gas metering,
         # choose small constants (e.g. 0 can be replaced by PUSH0)
         final_value, temp_value = 0, 1
