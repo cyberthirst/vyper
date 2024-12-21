@@ -15,8 +15,9 @@ def _align_kwargs(func_t, args_ir):
     assert func_t.n_positional_args <= len(args_ir) <= func_t.n_total_args
 
     num_provided_kwargs = len(args_ir) - func_t.n_positional_args
+    num_unprovided_kwargs = (func_t.n_total_args - func_t.n_positional_args - num_provided_kwargs)
 
-    unprovided_kwargs = func_t.keyword_args[num_provided_kwargs:]
+    unprovided_kwargs = func_t.keyword_args[:num_unprovided_kwargs]
     return [i.default_value for i in unprovided_kwargs]
 
 
