@@ -88,7 +88,19 @@ def can_convert(i_typ, o_typ):
         return isinstance(o_typ, (DecimalT, BytesM_T, IntegerT, AddressT))
 
     if isinstance(i_typ, BytesT):
-        return isinstance(o_typ, (IntegerT, DecimalT, AddressT))
+        if isinstance(o_typ, (BytesT, StringT)):
+            return i_typ.maxlen > o_typ.maxlen
+        if isinstance(o_typ, BytesM_T):
+            return i_typ.maxlen <= o_typ.m
+
+        return i_typ.length == 32 and isinstance(o_typ, (IntegerT, DecimalT, AddressT, BoolT))
+
+    if isinstance(i_typ, StringT):
+        assert i_typ.length == 32
+        if isinstance(o_typ, (StringT, BytesT)):
+            return i_typ.maxlen > o_typ.maxlen
+
+        return i_typ.length == 32 and isinstance(o_typ, BoolT)
 
     if isinstance(i_typ, DecimalT):
         if isinstance(o_typ, BytesM_T):
