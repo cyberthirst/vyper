@@ -328,7 +328,9 @@ def _py_convert(val, i_typ, o_typ):
 
     val_bits = _to_bits(val, i_typ)
 
-    if isinstance(i_typ, (BytesT, StringT)):
+    if isinstance(i_typ, (BytesT, StringT)) and not isinstance(
+        o_typ, (BytesT, StringT)
+    ):
         val_bits = val_bits[32:]
 
     if _padding_direction(i_typ) != _padding_direction(o_typ):
