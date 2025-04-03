@@ -365,7 +365,7 @@ def _py_convert(val, i_typ, o_typ):
 
 # the matrix of all type pairs
 def all_pairs():
-    return sorted(itertools.product(BASE_TYPES, BASE_TYPES))
+    return sorted(itertools.product(TEST_TYPES, TEST_TYPES))
 
 
 # pairs which can compile
