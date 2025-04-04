@@ -39,7 +39,7 @@ def _bits_of_type(typ):
         return 160
     if isinstance(typ, BytesM_T):
         return typ.m_bits
-    if isinstance(typ, BytesT):
+    if isinstance(typ, (BytesT, StringT)):
         return typ.length * 8
 
     raise Exception(f"Unknown type {typ}")
@@ -58,6 +58,14 @@ class _OutOfBounds(Exception):
 
     pass
 
+def _can_bytestring_cast(i_typ, o_typ):
+    assert isinstance(i_typ, (BytesT, StringT))
+    assert isinstance(o_typ, (BytesT, StringT))
+    if isinstance(i_typ, o_typ.__class__):
+        return i_typ.maxlen > o_typ.maxlen
+    else:
+        return True
+
 
 def can_convert(i_typ, o_typ):
     """
@@ -69,36 +77,31 @@ def can_convert(i_typ, o_typ):
     if isinstance(o_typ, BoolT):
         return True
     if isinstance(i_typ, BoolT):
-        return not isinstance(o_typ, AddressT)
+        return not isinstance(o_typ, (AddressT, BytesT, StringT))
 
     if isinstance(i_typ, IntegerT):
         if isinstance(o_typ, BytesM_T):
             return bytes_of_type(i_typ) <= bytes_of_type(o_typ)
 
-        ret = isinstance(o_typ, (IntegerT, DecimalT, BytesM_T, BytesT))
+        ret = isinstance(o_typ, (IntegerT, DecimalT, BytesM_T))
         if not i_typ.is_signed:
             ret |= isinstance(o_typ, AddressT)
         return ret
 
     if isinstance(i_typ, BytesM_T):
-        if isinstance(o_typ, BytesT):
-            # bytesN must be of equal or smaller size to the input
-            return bytes_of_type(i_typ) <= bytes_of_type(o_typ)
-
         return isinstance(o_typ, (DecimalT, BytesM_T, IntegerT, AddressT))
 
     if isinstance(i_typ, BytesT):
         if isinstance(o_typ, (BytesT, StringT)):
-            return i_typ.maxlen > o_typ.maxlen
+             return _can_bytestring_cast(i_typ, o_typ)
         if isinstance(o_typ, BytesM_T):
             return i_typ.maxlen <= o_typ.m
 
         return i_typ.length == 32 and isinstance(o_typ, (IntegerT, DecimalT, AddressT, BoolT))
 
     if isinstance(i_typ, StringT):
-        assert i_typ.length == 32
         if isinstance(o_typ, (StringT, BytesT)):
-            return i_typ.maxlen > o_typ.maxlen
+            return _can_bytestring_cast(i_typ, o_typ)
 
         return i_typ.length == 32 and isinstance(o_typ, BoolT)
 
