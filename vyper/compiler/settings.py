@@ -183,6 +183,8 @@ class Settings:
             ret.append(" --debug")
         if self.enable_decimals is True:
             ret.append(" --enable-decimals")
+        if self.no_static_assert is True:
+            ret.append(" --experimental-no-static-assert")
 
         return "".join(ret)
 
