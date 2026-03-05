@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterator, Optional
 
+from vyper import ast as vy_ast
 from vyper.codegen.ir_node import IRnode
 from vyper.venom.basicblock import IRBasicBlock, IRInstruction, IRLabel, IRVariable
 
@@ -48,7 +49,7 @@ class IRFunction:
     _has_memory_return_buffer_param: Optional[bool]
 
     # Used during code generation
-    _ast_source_stack: list[IRnode]
+    _ast_source_stack: list[Optional[vy_ast.VyperNode]]
     _error_msg_stack: list[Optional[str]]
 
     def __init__(self, name: IRLabel, ctx: IRContext = None):
@@ -140,10 +141,19 @@ class IRFunction:
                         continue
                     inst.operands[i] = varmap[op]
 
-    def push_source(self, ir):
-        if isinstance(ir, IRnode):
-            self._ast_source_stack.append(ir.ast_source)
-            self._error_msg_stack.append(ir.error_msg)
+    def push_source(self, src):
+        ast_source = None
+        error_msg = self.error_msg
+
+        if isinstance(src, IRnode):
+            ast_source = src.ast_source
+            if src.error_msg is not None:
+                error_msg = src.error_msg
+        elif isinstance(src, vy_ast.VyperNode):
+            ast_source = src
+
+        self._ast_source_stack.append(ast_source)
+        self._error_msg_stack.append(error_msg)
 
     def push_error_msg(self, error_msg: Optional[str]):
         """Push an error message without changing ast_source."""
@@ -198,7 +208,7 @@ class IRFunction:
         return None
 
     @property
-    def ast_source(self) -> Optional[IRnode]:
+    def ast_source(self) -> Optional[vy_ast.VyperNode]:
         return self._ast_source_stack[-1] if len(self._ast_source_stack) > 0 else None
 
     @property

@@ -167,6 +167,8 @@ class InstUpdater:
 
         operands = list(args)
         new_inst = IRInstruction(opcode, operands, [var] if var is not None else None)
+        new_inst.ast_source = inst.get_ast_source()
+        new_inst.error_msg = inst.error_msg
         inst.parent.insert_instruction(new_inst, index)
         for op in new_inst.operands:
             if isinstance(op, IRVariable):

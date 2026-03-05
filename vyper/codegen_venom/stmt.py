@@ -43,7 +43,8 @@ class Stmt:
         method = getattr(self, fn_name, None)
         if method is None:
             raise CompilerPanic(f"Unsupported stmt: {type(self.node)}")
-        return method()
+        with self.builder.source_context(self.node):
+            return method()
 
     # === Assignment Statements ===
 

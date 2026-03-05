@@ -114,9 +114,10 @@ _REVERT_POSTAMBLE = [Label("revert"), *PUSH(0), "DUP1", "REVERT"]
 
 def apply_line_numbers(inst: IRInstruction, asm) -> list[str]:
     ret = []
+    ast_source = inst.get_ast_source()
     for op in asm:
         if isinstance(op, str) and not isinstance(op, TaggedInstruction):
-            ret.append(TaggedInstruction(op, inst.ast_source, inst.error_msg))
+            ret.append(TaggedInstruction(op, ast_source, inst.error_msg))
         else:
             ret.append(op)
     return ret  # type: ignore

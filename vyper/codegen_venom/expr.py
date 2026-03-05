@@ -136,7 +136,8 @@ class Expr:
         method = getattr(self, fn_name, None)
         if method is None:
             raise CompilerPanic(f"Unsupported expr: {type(self.node)}")
-        return method()
+        with self.builder.source_context(self.node):
+            return method()
 
     def lower_value(self) -> IROperand:
         """Lower and unwrap to get the value.

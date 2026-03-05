@@ -936,27 +936,28 @@ def _generate_external_function_body(
         is_ctor_context=False,
     )
 
-    # Register positional args from calldata
-    _register_positional_args(codegen_ctx, func_t)
+    with builder.source_context(func_ast):
+        # Register positional args from calldata
+        _register_positional_args(codegen_ctx, func_t)
 
-    # Handle kwargs (allocate memory, copy from calldata or defaults)
-    _handle_kwargs(codegen_ctx, func_t, entry_info)
+        # Handle kwargs (allocate memory, copy from calldata or defaults)
+        _handle_kwargs(codegen_ctx, func_t, entry_info)
 
-    # Nonreentrant lock
-    codegen_ctx.emit_nonreentrant_lock(func_t)
+        # Nonreentrant lock
+        codegen_ctx.emit_nonreentrant_lock(func_t)
 
-    # Function body
-    for stmt in func_ast.body:
-        Stmt(stmt, codegen_ctx).lower()
+        # Function body
+        for stmt in func_ast.body:
+            Stmt(stmt, codegen_ctx).lower()
 
-    # If no explicit return, add stop/return
-    if not builder.is_terminated():
-        codegen_ctx.emit_nonreentrant_unlock(func_t)
-        if func_t.return_type is None:
-            builder.stop()
-        else:
-            # This shouldn't happen - function should have return stmt
-            raise CompilerPanic("External function missing return")
+        # If no explicit return, add stop/return
+        if not builder.is_terminated():
+            codegen_ctx.emit_nonreentrant_unlock(func_t)
+            if func_t.return_type is None:
+                builder.stop()
+            else:
+                # This shouldn't happen - function should have return stmt
+                raise CompilerPanic("External function missing return")
 
 
 def _generate_entry_point_kwargs(
@@ -1015,27 +1016,28 @@ def _generate_common_function_body(
         is_ctor_context=False,
     )
 
-    # Register positional args from calldata
-    _register_positional_args(codegen_ctx, func_t)
+    with builder.source_context(func_ast):
+        # Register positional args from calldata
+        _register_positional_args(codegen_ctx, func_t)
 
-    # Register pre-allocated kwargs (just register the existing allocas)
-    _register_kwarg_variables(codegen_ctx, func_t)
+        # Register pre-allocated kwargs (just register the existing allocas)
+        _register_kwarg_variables(codegen_ctx, func_t)
 
-    # Nonreentrant lock
-    codegen_ctx.emit_nonreentrant_lock(func_t)
+        # Nonreentrant lock
+        codegen_ctx.emit_nonreentrant_lock(func_t)
 
-    # Function body
-    for stmt in func_ast.body:
-        Stmt(stmt, codegen_ctx).lower()
+        # Function body
+        for stmt in func_ast.body:
+            Stmt(stmt, codegen_ctx).lower()
 
-    # If no explicit return, add stop/return
-    if not builder.is_terminated():
-        codegen_ctx.emit_nonreentrant_unlock(func_t)
-        if func_t.return_type is None:
-            builder.stop()
-        else:
-            # This shouldn't happen - function should have return stmt
-            raise CompilerPanic("External function missing return")
+        # If no explicit return, add stop/return
+        if not builder.is_terminated():
+            codegen_ctx.emit_nonreentrant_unlock(func_t)
+            if func_t.return_type is None:
+                builder.stop()
+            else:
+                # This shouldn't happen - function should have return stmt
+                raise CompilerPanic("External function missing return")
 
 
 def _register_positional_args(ctx: VenomCodegenContext, func_t: ContractFunctionT) -> None:
@@ -1251,20 +1253,21 @@ def _generate_fallback_body(
         is_ctor_context=False,
     )
 
-    # Nonreentrant lock
-    codegen_ctx.emit_nonreentrant_lock(func_t)
+    with builder.source_context(func_ast):
+        # Nonreentrant lock
+        codegen_ctx.emit_nonreentrant_lock(func_t)
 
-    # Function body
-    for stmt in func_ast.body:
-        Stmt(stmt, codegen_ctx).lower()
+        # Function body
+        for stmt in func_ast.body:
+            Stmt(stmt, codegen_ctx).lower()
 
-    # Exit
-    if not builder.is_terminated():
-        codegen_ctx.emit_nonreentrant_unlock(func_t)
-        if func_t.return_type is None:
-            builder.stop()
-        else:
-            raise CompilerPanic("Fallback function with return type")
+        # Exit
+        if not builder.is_terminated():
+            codegen_ctx.emit_nonreentrant_unlock(func_t)
+            if func_t.return_type is None:
+                builder.stop()
+            else:
+                raise CompilerPanic("Fallback function with return type")
 
 
 def _generate_internal_function(
@@ -1297,71 +1300,72 @@ def _generate_internal_function(
         is_ctor_context=is_ctor_context,
     )
 
-    # Reserve immutables region for ctor context internal functions.
-    # Uses the SHARED alloca_id and explicitly sets position 0 to match
-    # the constructor's allocation. This ensures all ctor-context functions
-    # access immutables at the same memory location.
-    if is_ctor_context and immutables_len > 0 and immutables_alloca_id is not None:
-        codegen_ctx.immutables_alloca = builder.alloca(immutables_len, immutables_alloca_id)
-        # Get the alloca instruction (just appended) and force position 0
-        alloca_inst = builder._current_bb.instructions[-1]
-        assert alloca_inst.opcode == "alloca", f"Expected alloca, got {alloca_inst.opcode}"
-        imm_alloc = Allocation(alloca_inst)
-        builder.ctx.mem_allocator.set_position(imm_alloc, 0)
-        # Keep ctor immutables region reserved in all functions so local
-        # allocas in ctor-context internal calls cannot overlap it.
-        builder.ctx.mem_allocator.add_global(imm_alloc)
+    with builder.source_context(func_ast):
+        # Reserve immutables region for ctor context internal functions.
+        # Uses the SHARED alloca_id and explicitly sets position 0 to match
+        # the constructor's allocation. This ensures all ctor-context functions
+        # access immutables at the same memory location.
+        if is_ctor_context and immutables_len > 0 and immutables_alloca_id is not None:
+            codegen_ctx.immutables_alloca = builder.alloca(immutables_len, immutables_alloca_id)
+            # Get the alloca instruction (just appended) and force position 0
+            alloca_inst = builder._current_bb.instructions[-1]
+            assert alloca_inst.opcode == "alloca", f"Expected alloca, got {alloca_inst.opcode}"
+            imm_alloc = Allocation(alloca_inst)
+            builder.ctx.mem_allocator.set_position(imm_alloc, 0)
+            # Keep ctor immutables region reserved in all functions so local
+            # allocas in ctor-context internal calls cannot overlap it.
+            builder.ctx.mem_allocator.add_global(imm_alloc)
 
-    # Set up return handling
-    pass_via_stack_dict = pass_via_stack(func_t)
-    returns_count = returns_stack_count(func_t)
-    has_memory_return_buffer = func_t.return_type is not None and returns_count == 0
+        # Set up return handling
+        pass_via_stack_dict = pass_via_stack(func_t)
+        returns_count = returns_stack_count(func_t)
+        has_memory_return_buffer = func_t.return_type is not None and returns_count == 0
 
-    # Structured invoke metadata used by backend passes.
-    fn._has_memory_return_buffer_param = has_memory_return_buffer
-    fn._invoke_param_count = len(func_t.arguments) + (1 if has_memory_return_buffer else 0)
+        # Structured invoke metadata used by backend passes.
+        fn._has_memory_return_buffer_param = has_memory_return_buffer
+        fn._invoke_param_count = len(func_t.arguments) + (1 if has_memory_return_buffer else 0)
 
-    # Handle parameters
-    # First: return buffer pointer if memory return
-    if has_memory_return_buffer:
-        codegen_ctx.return_buffer = builder.param()
+        # Handle parameters
+        # First: return buffer pointer if memory return
+        if has_memory_return_buffer:
+            codegen_ctx.return_buffer = builder.param()
 
-    # Handle function arguments
-    for arg in func_t.arguments:
-        if pass_via_stack_dict[arg.name]:
-            # Stack-passed: receive value, allocate memory, store
-            val = builder.param()
-            var = codegen_ctx.new_variable(arg.name, arg.typ, mutable=True)
-            codegen_ctx.ptr_store(var.value.ptr(), val)
-        else:
-            # Memory-passed: receive pointer, register directly (no allocation)
-            ptr = builder.param()
-            codegen_ctx.register_variable(arg.name, arg.typ, ptr, mutable=True)
+        # Handle function arguments
+        for arg in func_t.arguments:
+            if pass_via_stack_dict[arg.name]:
+                # Stack-passed: receive value, allocate memory, store
+                val = builder.param()
+                var = codegen_ctx.new_variable(arg.name, arg.typ, mutable=True)
+                codegen_ctx.ptr_store(var.value.ptr(), val)
+            else:
+                # Memory-passed: receive pointer, register directly (no allocation)
+                ptr = builder.param()
+                codegen_ctx.register_variable(arg.name, arg.typ, ptr, mutable=True)
 
-    # Return PC is last param
-    codegen_ctx.return_pc = builder.param()
+        # Return PC is last param
+        codegen_ctx.return_pc = builder.param()
 
-    # Allocate return buffer if needed
-    if func_t.return_type is not None:
-        if returns_count > 0:
-            ret_buf = codegen_ctx.new_temporary_value(func_t.return_type).operand
-            assert isinstance(ret_buf, IRVariable)
-            codegen_ctx.return_buffer = ret_buf
+        # Allocate return buffer if needed
+        if func_t.return_type is not None:
+            if returns_count > 0:
+                ret_buf = codegen_ctx.new_temporary_value(func_t.return_type).operand
+                assert isinstance(ret_buf, IRVariable)
+                codegen_ctx.return_buffer = ret_buf
 
-    # Nonreentrant lock
-    codegen_ctx.emit_nonreentrant_lock(func_t)
+        # Nonreentrant lock
+        codegen_ctx.emit_nonreentrant_lock(func_t)
 
-    # Function body
-    for stmt in func_ast.body:
-        Stmt(stmt, codegen_ctx).lower()
+        # Function body
+        for stmt in func_ast.body:
+            Stmt(stmt, codegen_ctx).lower()
 
-    # Default return if not terminated
-    if not builder.is_terminated():
-        codegen_ctx.emit_nonreentrant_unlock(func_t)
-        if func_t.return_type is None:
-            builder.ret(codegen_ctx.return_pc)
-        else:
-            raise CompilerPanic("Internal function missing return")
+        # Default return if not terminated
+        if not builder.is_terminated():
+            codegen_ctx.emit_nonreentrant_unlock(func_t)
+            if func_t.return_type is None:
+                builder.ret(codegen_ctx.return_pc)
+            else:
+                raise CompilerPanic("Internal function missing return")
 
 
 def _generate_constructor(
@@ -1385,57 +1389,58 @@ def _generate_constructor(
         is_ctor_context=True,
     )
 
-    # Payable check
-    if not func_t.is_payable:
-        callvalue = builder.callvalue()
-        is_zero = builder.iszero(callvalue)
-        builder.assert_(is_zero)
+    with builder.source_context(func_ast):
+        # Payable check
+        if not func_t.is_payable:
+            callvalue = builder.callvalue()
+            is_zero = builder.iszero(callvalue)
+            builder.assert_(is_zero)
 
-    # Reserve immutables region at memory position 0.
-    # Immutables MUST be at position 0 because:
-    # 1. The deploy epilogue copies from position 0 to the bytecode
-    # 2. Runtime dload(0) reads from code_end + 0
-    #
-    # We explicitly set the position to 0 using mem_allocator.set_position()
-    # to bypass the normal allocation algorithm. This matches the legacy
-    # codegen behavior.
-    # (GH issue 3101)
-    if immutables_len > 0 and immutables_alloca_id is not None:
-        codegen_ctx.immutables_alloca = builder.alloca(immutables_len, immutables_alloca_id)
-        # Get the alloca instruction (just appended) and force position 0
-        alloca_inst = builder._current_bb.instructions[-1]
-        assert alloca_inst.opcode == "alloca", f"Expected alloca, got {alloca_inst.opcode}"
-        imm_alloc = Allocation(alloca_inst)
-        builder.ctx.mem_allocator.set_position(imm_alloc, 0)
-        # Reserve immutables memory globally so later function concretization
-        # never reuses this region for temporary allocas.
-        builder.ctx.mem_allocator.add_global(imm_alloc)
+        # Reserve immutables region at memory position 0.
+        # Immutables MUST be at position 0 because:
+        # 1. The deploy epilogue copies from position 0 to the bytecode
+        # 2. Runtime dload(0) reads from code_end + 0
+        #
+        # We explicitly set the position to 0 using mem_allocator.set_position()
+        # to bypass the normal allocation algorithm. This matches the legacy
+        # codegen behavior.
+        # (GH issue 3101)
+        if immutables_len > 0 and immutables_alloca_id is not None:
+            codegen_ctx.immutables_alloca = builder.alloca(immutables_len, immutables_alloca_id)
+            # Get the alloca instruction (just appended) and force position 0
+            alloca_inst = builder._current_bb.instructions[-1]
+            assert alloca_inst.opcode == "alloca", f"Expected alloca, got {alloca_inst.opcode}"
+            imm_alloc = Allocation(alloca_inst)
+            builder.ctx.mem_allocator.set_position(imm_alloc, 0)
+            # Reserve immutables memory globally so later function concretization
+            # never reuses this region for temporary allocas.
+            builder.ctx.mem_allocator.add_global(imm_alloc)
 
-        # Force msize to be past immutables region (like legacy's GH issue 3101 fix)
-        # This ensures builtins using msize() don't clobber immutables
-        # mload X touches bytes X to X+32, so touch the last word
-        touch_offset = max(0, immutables_len - 32)
-        builder.mload(IRLiteral(touch_offset))
+            # Force msize to be past immutables region (like legacy's GH issue 3101 fix)
+            # This ensures builtins using msize() don't clobber immutables
+            # mload X touches bytes X to X+32, so touch the last word
+            touch_offset = max(0, immutables_len - 32)
+            builder.mload(IRLiteral(touch_offset))
 
-    # Register constructor args from DATA section (not calldata)
-    # Constructor args are appended to the deploy code
-    _register_constructor_args(codegen_ctx, func_t)
+        # Register constructor args from DATA section (not calldata)
+        # Constructor args are appended to the deploy code
+        _register_constructor_args(codegen_ctx, func_t)
 
-    # Nonreentrant lock
-    codegen_ctx.emit_nonreentrant_lock(func_t)
+        # Nonreentrant lock
+        codegen_ctx.emit_nonreentrant_lock(func_t)
 
-    # Constructor body
-    for stmt in func_ast.body:
-        Stmt(stmt, codegen_ctx).lower()
+        # Constructor body
+        for stmt in func_ast.body:
+            Stmt(stmt, codegen_ctx).lower()
 
-    # Unlock
-    if not builder.is_terminated():
-        codegen_ctx.emit_nonreentrant_unlock(func_t)
+        # Unlock
+        if not builder.is_terminated():
+            codegen_ctx.emit_nonreentrant_unlock(func_t)
 
-        # Deploy epilogue: copy runtime code to memory and return
-        _emit_deploy_epilogue(
-            builder, runtime_codesize, immutables_len, codegen_ctx.immutables_alloca
-        )
+            # Deploy epilogue: copy runtime code to memory and return
+            _emit_deploy_epilogue(
+                builder, runtime_codesize, immutables_len, codegen_ctx.immutables_alloca
+            )
 
 
 def _register_constructor_args(ctx: VenomCodegenContext, func_t: ContractFunctionT) -> None:
